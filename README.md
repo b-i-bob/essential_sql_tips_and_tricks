@@ -1,2 +1,2 @@
 # essential_sql_tips_and_tricks
-What you need to know beyond SQL syntax to write database queries.
+What Bob wants you to know about SQL to write correct and performant database queries.
