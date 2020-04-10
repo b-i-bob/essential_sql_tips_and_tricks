@@ -10,16 +10,15 @@ FROM
 (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 ```
 *output:*
-a|b|equals
----|---|---
-1|1|true
-1|0|false
-NULL|1|NULL
-1|NULL|NULL
-NULL|NULL|NULL
+| a | b | equals |
+| :--- | :--- | :--- |
+| 1 | 1 | true |
+| 1 | 0 | false |
+| NULL | 1 | NULL |
+| 1 | NULL | NULL |
+| NULL | NULL | NULL |
 
-You might expect `A=B` to return just `TRUE` and `FALSE`. However, equals in SQL returns `NULL` if either of the operands are `NULL`.
-You need to decide what to do with `NULL`s if you want to treat them as ordinary two-valued logic `TRUE` or `FALSE`.
+You might expect `A=B` to return just `TRUE` and `FALSE`. Surprise! Equals in SQL returns `NULL` if either of the operands are `NULL`. You need to specify what to do with `NULL`s if you want to make them go away.
 
 ## Tip #1: Use `IS NULL` to explicitly test for `NULL` values
 
@@ -42,20 +41,20 @@ FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 
 This spells it out pretty clearly but is verbose compared to the alternatives.
 
-## Tip #2: Use `COALESCE()` to provide a default instead of NULL 
+## Tip #2: Use `COALESCE()` to replace `NULL` with a default value 
 
 ```sql
 SELECT A, B, A=B AS equals, COALESCE(A=B, FALSE) AS coalesce_false
 FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 ```
 *output:*
-a|b|equals|coalesce_false
----|---|---|---
-1|1|true|true
-1|0|false|false
-NULL|1|NULL|false
-1|NULL|NULL|false
-NULL|NULL|NULL|false
+| a | b | equals | coalesce_false |
+| :--- | :--- | :--- | :--- |
+| 1 | 1 | true | true |
+| 1 | 0 | false | false |
+| NULL | 1 | NULL | false |
+| 1 | NULL | NULL | false |
+| NULL | NULL | NULL | false |
 
 This is usually sufficient. If you want NULL=NULL to be `TRUE` you can do something fancier:
 ```sql
@@ -72,7 +71,7 @@ FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 | 1 | NULL | NULL | false | false |
 | NULL | NULL | NULL | false | true |
 
-## Tip #2: Use `IS NOT DISTINCT FROM` to treat NULL as a distinct value equal to itself
+## Tip #2: Use `IS NOT DISTINCT FROM` to treat `NULL` equal to itself
 
 ```sql
 SELECT A, B, A IS NOT DISTINCT FROM B AS slick
