@@ -71,7 +71,7 @@ FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 | 1 | NULL | NULL | false | false |
 | NULL | NULL | NULL | false | true |
 
-## Tip #2: Use `IS NOT DISTINCT FROM` to treat `NULL` equal to itself
+## Tip #3: Use `IS NOT DISTINCT FROM` to treat `NULL` equal to itself
 
 ```sql
 SELECT A, B, A IS NOT DISTINCT FROM B AS slick
