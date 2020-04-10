@@ -2,62 +2,89 @@
 
 ## What is `NULL`?
 
-SQL uses `NULL` to represent an unknown value. Once a value is `NULL` any comparison using =, &lt;, &gt;, etc. results in NULL. 
+SQL uses `NULL` to represent an unknown value of any type.
 
 ```sql
-SELECT 1=1, 1=0, NULL=1, 1=NULL, NULL=NULL
+SELECT A, B, A=B AS equals
+FROM
+(VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 ```
-*output: true	false	NULL	NULL	NULL*
+*output:*
+a|b|equals
+---|---|---
+1|1|true
+1|0|false
+NULL|1|NULL
+1|NULL|NULL
+NULL|NULL|NULL
 
-You might expect this to return just `TRUE` and `FALSE` but equals in SQL returns `NULL` if either of the operands are `NULL`.
-You need to decide what to do with NULLs if you want to treat them as ordinary `TRUE` or `FALSE`.
+You might expect `A=B` to return just `TRUE` and `FALSE`. However, equals in SQL returns `NULL` if either of the operands are `NULL`.
+You need to decide what to do with `NULL`s if you want to treat them as ordinary two-valued logic `TRUE` or `FALSE`.
 
 ## Tip #1: Use `IS NULL` to explicitly test for `NULL` values
 
 ```sql
-SELECT CASE WHEN Col1 IS NULL AND Col2 IS NULL THEN TRUE
-            WHEN Col1 IS NULL OR Col2 IS NULL THEN FALSE
-            ELSE Col1=Col2
-            END
-FROM TABLE A
+SELECT A, B, CASE
+               WHEN A IS NULL AND B IS NULL THEN TRUE
+               WHEN A IS NULL OR B IS NULL THEN FALSE
+               ELSE A=B
+              END as verbose
+FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 ```
+*output:*
+| a | b | verbose |
+| :--- | :--- | :--- |
+| 1 | 1 | true |
+| 1 | 0 | false |
+| NULL | 1 | false |
+| 1 | NULL | false |
+| NULL | NULL | true |
+
 This spells it out pretty clearly but is verbose compared to the alternatives.
 
 ## Tip #2: Use `COALESCE()` to provide a default instead of NULL 
 
-`COALESCE(A,B,C)` returns `A` if it is not `NULL`, otherwise returns `B` if its not `NULL`, otherwise returns `C`.
-`SELECT COALESCE(NULL,NULL,TRUE)` outputs *true*.
-
 ```sql
-SELECT COALESCE(Col1=Col2, FALSE)
-FROM TABLE A
+SELECT A, B, A=B AS equals, COALESCE(A=B, FALSE) AS coalesce_false
+FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 ```
+*output:*
+a|b|equals|coalesce_false
+---|---|---|---
+1|1|true|true
+1|0|false|false
+NULL|1|NULL|false
+1|NULL|NULL|false
+NULL|NULL|NULL|false
 
-That is...
+This is usually sufficient. If you want NULL=NULL to be `TRUE` you can do something fancier:
 ```sql
-SELECT COALESCE(1=1, FALSE),
-       COALESCE(1=0, FALSE),
-       COALESCE(NULL=1, FALSE),
-       COALESCE(1=NULL, FALSE),
-       COALESCE(NULL=NULL, FALSE)
+SELECT A, B, A=B AS equals, COALESCE(A=B, FALSE) AS coalesce_false,
+       COALESCE(A=B, A IS NULL AND B IS NULL) AS coalesce_fancy
+FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 ```
-*output: true	false	false	false	false*
-
-Notice that `NULL=NULL` outputs the default value `false` which may be OK for your use case.
+*output:*
+| a | b | equals | coalesce\_false | coalesce\_fancy |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | 1 | true | true | true |
+| 1 | 0 | false | false | false |
+| NULL | 1 | NULL | false | false |
+| 1 | NULL | NULL | false | false |
+| NULL | NULL | NULL | false | true |
 
 ## Tip #2: Use `IS NOT DISTINCT FROM` to treat NULL as a distinct value equal to itself
 
 ```sql
-SELECT Col1 IS NOT DISTINCT FROM Col2
-FROM TABLE A
+SELECT A, B, A IS NOT DISTINCT FROM B AS slick
+FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 ```
+*output:*
+| a | b | slick |
+| :--- | :--- | :--- |
+| 1 | 1 | true |
+| 1 | 0 | false |
+| NULL | 1 | false |
+| 1 | NULL | false |
+| NULL | NULL | true |
 
-That is...
-```sql
-SELECT 1 IS NOT DISTINCT FROM 1,
-       1 IS NOT DISTINCT FROM 0,
-       NULL IS NOT DISTINCT FROM 1,
-       1 IS NOT DISTINCT FROM NULL,
-       NULL IS NOT DISTINCT FROM NULL
-```
-*output: true	false	false	false	true*
+If `IS NOT DISTINCT FROM` is not availale in your SQL dialect use one of the other alternatives.
