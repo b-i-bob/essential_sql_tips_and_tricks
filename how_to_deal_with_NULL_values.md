@@ -86,4 +86,4 @@ FROM (VALUES (1,1), (1,0), (NULL,1), (1,NULL), (NULL,NULL)) AS T(A,B)
 | 1 | NULL | false |
 | NULL | NULL | true |
 
-If `IS NOT DISTINCT FROM` is not availale in your SQL dialect use one of the other alternatives.
+If `IS NOT DISTINCT FROM` is not available in your SQL dialect use `COALESCE()`.
