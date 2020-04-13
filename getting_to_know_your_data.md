@@ -11,17 +11,22 @@ For data sets over 1 million rows you are going to need something the enforces m
 You're going to need a database.
 
 A relational database management system (RDBMS) manages data in named databases and named tables 
-similar to speadsheet's workbooks and sheets. 
+corresponding to a spreadsheet's workbooks and sheets. 
 Other database objects include: views, materialized views, stored procedures, indexes, sequences, operations, and user-defined functions. 
 
-Typical uses of separate databases are for data different stages of development or access permissions.
+Separate databases typically are for data different stages of development or access permissions or under control of different departments.
 
-Each table has named columns whereas a spreadsheet has columns A,B,C,...AA,AB,AC,...etc.
-Each table has rows which are unnamed and logically unordered. Usually one or more columns act as a primary key whose contents unuquely identifies each row.
-Each table has a set of named columns. 
-Each table typically represents a collection of one kind of entity: users, bank accounts, etc. Each row represents one user, one bank account, etc.
-Each column holds one type of data. Data types can be an integer or real number or datetime or strings of characters. 
-Advanced data types include JSON, XML, a vector to hold multiple values, geographic points, etc.
+Separate tables typically represents a collection of one kind of entity: users, bank accounts, etc. This discipline means your queries will often need to join the data squirreled away in multiple tables.
+
+A table has named columns whereas a spreadsheet has columns named A,B,C,... AA,AB,AC,... ZZ.
+
+Each column in a table holds one type of data whereas a spreadsheet allows any values anywhere. 
+Column data types can be an integer or real number or datetime or string of characters. 
+Advanced data types include JSON, XML, a vector to hold multiple values, geographic points, etc. A column cannot contain another table. A column can contain a value which can be used to relate that row to rows in other tables.
+
+Tables have a changing number of rows as data is inserted and deleted. 
+To uniquely identify each row the contents of one or more columns act as a so called primary key.
+Each row represents one user, one bank account, one observation of an event, etc. 
 
 A RDBMS has a standard query language (SQL) to get result sets with SELECT, 
 manage rows of data with INSERT, UPDATE, and DELETE, 
@@ -119,4 +124,12 @@ ORDER BY 1
 # Tip #5: When to stop looking at data?
 
 Profile data up to the point where you know enough to make the decisions you need to make. 
+
+# Tip #6: Do not plan to have a column for each month's sales
+
+Take advantage of the asymmetry between rows (easy to insert and delete) and columns (harder to insert and delete, essentially fixed). The columns names act as an interface to processes which use the table. Minimizing the changes to the columns will minimize changes to all processes which use the table. 
+
+Because planning spreadsheets have columns for each month (January 2020, February 2020, March 2020, etc.) it seems logical that the database table should have those same columns. But the next year 12 additional columns would be needed. All processes which use this data would need to be updated or need to be much more dynamic. This is possible, but goes against the grain.
+
+If instead the columns are sales_month and sales_amount a new row can be added each month. For human consumption data can be pivoted to show monthly columns after retrieval from the database.
 
