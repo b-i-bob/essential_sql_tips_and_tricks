@@ -6,33 +6,15 @@ represents, what each column represents, which columns can have NULL values, whi
 For multi-table queries you'll need to specify how to combine the tables, two a time, 
 using sub-selects, `JOIN`s, and `UNION`s. 
 
-### Know your data.
-
-Before you write a query you need to know a few things: which tables to query, how the tables relate to each other, 
-what you want each row in the query output to represent, how you want to deal
-with missing values, inconsistencies, and duplicate values. 
-
-This is the hard part. Ask for written documentation sometimes called a data dictionary. 
-Find out who knows the data best and ask them. Ask to see existing queries you can learn from. 
-Query the data to verify any assumptions. Oh, and the data is changing all the time. Good luck!
-
-If the data you seek does not exist you need to resolve additional issues: How to source that missing data. What
-proxy data you can use instead. How to bring the data you need into a system you can query. How to clean and monitor the data.
-
 ## How many matches will there be for each row: 0, 1, N?
 
 Let's assume you have two tables to query and you think you know how they are related. 
 
-Look at the data and query the data to verify the relationships.
-How many rows from the first and second table will match each other? Do any matching columns contain NULLs?
-Do the values in the columns which should match actually match each other? Are there suspicious values such as outliers?
-Do this data profiling up to the point where it allows you to make the decisions you need to make. 
-
-Categorize the relationship bewteen the two tables based on how many rows in the first table can match how many rows in the second table. The shorthand for these relationships are: 1:1, 1:0..1, 1:N, N:1, and N:M. This knowledged can be visualized by making an entity-relationship diagram. Now you know enough to control for any missing data or duplications.
+Look at the data and query the data to verify the relationships.Categorize the relationship bewteen the two tables based on how many rows in the first table can match how many rows in the second table. The shorthand for these relationships are: 1:1, 1:0..1, 1:N, N:1, and N:M. This is enough to know what missing data or duplications you need to control for.
 
 ## Summary
 
-Tables can be combined in a variety of ways. SQL gives you several constructs to build from. You write code in SQL using these constructs to specify the logic to produce the result set you want. Here is a summary:
+Tables can be combined in a variety of ways. SQL gives you several constructs to build from. You write code in SQL using these constructs to specify the logic to control for missing data and duplications. Missing data will result in 0 matches. Duplicate data will result in N matches. Here is a summary:
 
 | construct | match 0 rows | match 1 row | match N rows |
 | :--- | :--- | :--- | :--- |
@@ -114,16 +96,27 @@ FROM users AS C
 JOIN users AS P ON C.parent_id = P.id
 ```
 
-Another case is when you want to compare the rows to other rows. This selects only the oldest children for each parent. The oldest children will not match any older siblings. 
+Another case is when you want to compare the rows to other rows. This selects only the oldest children for each parent.
 
 ```sql
 SELECT C.username AS oldest_child, P.username AS parent
 FROM users AS C
 JOIN users AS P ON C.parent_id = P.id
-LEFT JOIN users AS OLDER ON C.parent_id = OLDER.parent_id AND C.age < OLDER.age
-WHERE OLDER.id IS NULL 
+LEFT JOIN users AS OLDER ON C.parent_id = OLDER.parent_id AND C.date_of_birth > OLDER.date_of_birth
+WHERE OLDER.id IS NULL
 ```
-# Tip #9: There are many other kinds of joins.
+
+# Tip #9: Deduplicating result sets.
+
+One simple way is to group by every column in the `SELECT` clause.
+
+```sql
+SELECT C.username AS oldest_child, C.date_of_birth
+FROM users AS C
+GROUP BY 1,2
+```
+
+# Tip #10: There are many other kinds of joins.
 
 These are the main ones. I'll stop here.
 
