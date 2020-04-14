@@ -3,18 +3,26 @@
 You are in luck if you can query from just one table. Someone has already done the work to decide what each row in the table
 represents, what each column represents, which columns can have NULL values, which columns have unique values, etc. They have even loaded the data.
 
-For multi-table queries you'll need to specify how to combine the tables, two a time, 
+For multi-table queries you'll need to specify how to combine two tables at a time 
 using sub-selects, `JOIN`s, and `UNION`s. 
 
-## How many matches will there be for each row: 0, 1, N?
+## How many matches will there be for each row: 0, 1, or many?
 
-Let's assume you have two tables to query and you think you know how they are related. 
+Let's assume you have two tables to query and you know which columns relate them. 
 
-Look at the data and query the data to verify the relationships.Categorize the relationship bewteen the two tables based on how many rows in the first table can match how many rows in the second table. The shorthand for these relationships are: 1:1, 1:0..1, 1:N, N:1, and N:M. This is enough to know what missing data or duplications you need to control for.
+Look at the data and query the data in both tables to verify the relationships. The relationship between two tables can be categorized by number rows in the first table and the number of rows in the second table which will match. The interesting possibilities are:
 
-## Summary
+relationship | description | min rows | max rows | missing rows | duplicate rows
+--- | ---
+N:1 | every row in the 1st table matches 1 row in the 2nd table | N | N | No | No
+N:0..1 | every row in the 1st table matches 0 or 1 rows in the 2nd table | 0 | N | Maybe | No
+N:M | every row in the 1st table matches 0, 1, or more rows in the 2nd table | 0 | N\*M | Maybe | Maybe
 
-Tables can be combined in a variety of ways. SQL gives you several constructs to build from. You write code in SQL using these constructs to specify the logic to control for missing data and duplications. Missing data will result in 0 matches. Duplicate data will result in N matches. Here is a summary:
+This relationship is soley determined by the data present in the relating columns. It bounds the range of rows you can get from reuniting the data from two tables into one result set. In the N:1 case you need to do nothing more to control for missing data or duplications, there cannot be any. That is why some columns are carefully controlled to have distinct values. In the other cases you have some further choices to make to exert control.
+
+## SQL constructs for combining data from two tables.
+
+Tables can be combined in a variety of ways. SQL gives you several constructs to build from. You write code in SQL using these constructs to specify the logic to control for missing data and duplications. Zero matches will result in missing rows. N matches will result in duplicate rows. Here is a summary:
 
 | construct | match 0 rows | match 1 row | match N rows |
 | :--- | :--- | :--- | :--- |
@@ -27,6 +35,8 @@ Tables can be combined in a variety of ways. SQL gives you several constructs to
 | UNION | N/A | N/A | N/A |
 
 Note: The `INNER` and `OUTER` keywords are optional. Use them for clarity. Omit them for brevity. It's a personal preference.
+
+The following tips show how these constructs work and when to use them.
 
 ## Tip #1: Use a sub-select to get a single value from a single column from another table
 
@@ -69,21 +79,21 @@ Rewrite your query using a `LEFT JOIN`.
 
 ## Tip #5: Don't use `NATURAL JOIN`.
 
-The database interprests a `NATURAL JOIN` the database follows some rules to guess how to join the tables. For readability, it is better to use another `JOIN` type and explicitly specify the `ON` clause you want.
+The database interprets a `NATURAL JOIN` by guessing that columns with the same name are the columns to use to join the tables. For readability, it is better to use another `JOIN` type and explicitly specify in the `ON` clause the columns to join.
 
 ## Tip #6: Use `FULL OUTER JOIN` when you need to retain all rows from both tables.
 
 A `FULL OUTER JOIN` is used when you want all rows in both the first and second table to appear in the result set even when they match no rows in the other table. Think of this as a `UNION` of a `LEFT OUTER JOIN` and a `RIGHT OUTER JOIN`. Better yet, don't.
 
-A way to combine two tables into one result set is `SELECT * from T1 FULL OUTER JOIN T2 ON FALSE`. These are despirate measures.
+A way to combine two tables into one result set is `SELECT * from T1 FULL OUTER JOIN T2 ON FALSE`. These are desperate measures.
 
 A `CROSS JOIN` IS a `FULL OUTER JOIN` without an `ON` clause. You can think of it as 
 `SELECT * FROM T1 FULL OUTER JOIN T2 ON TRUE`. It crosses an N row table with an M row table yielding an N\*M row table. The result set can be huge and it is not usually what you want. All the other joins yield subsets of the `CROSS JOIN`.
 
-## Tip #7: Use `UNION` or `UNION ALL` to stack two tables which have the same schema.
+## Tip #7: Use `UNION` or `UNION ALL` to stack two tables which have the same columns.
 
 If you have twelve identical tables, one for each month, you can `UNION` them together to combine them into one virtual table.
-`UNION` sorts the result set and remove duplicates. `UNION ALL` is faster. Use it when de-duplication is not needed.
+`UNION` sorts the result set and remove duplicates. `UNION ALL` is faster becasue it avoids sorting. Use it when de-duplication is not needed.
 
 ## Tip #8: Some queries require a self-join.
 
@@ -96,7 +106,7 @@ FROM users AS C
 JOIN users AS P ON C.parent_id = P.id
 ```
 
-Another case is when you want to compare the rows to other rows. This selects only the oldest children for each parent.
+Another case is when you want to compare rows to some other rows. This selects only the oldest children for each parent. 
 
 ```sql
 SELECT C.username AS oldest_child, P.username AS parent
@@ -105,10 +115,11 @@ JOIN users AS P ON C.parent_id = P.id
 LEFT JOIN users AS OLDER ON C.parent_id = OLDER.parent_id AND C.date_of_birth > OLDER.date_of_birth
 WHERE OLDER.id IS NULL
 ```
+It works by filtering out any children who have older siblings. 
 
 # Tip #9: Deduplicating result sets.
 
-One simple way is to group by every column in the `SELECT` clause.
+One simple way to remove duplicates is to group by every column in the `SELECT` clause.
 
 ```sql
 SELECT C.username AS oldest_child, C.date_of_birth
@@ -116,7 +127,10 @@ FROM users AS C
 GROUP BY 1,2
 ```
 
-# Tip #10: There are many other kinds of joins.
+# Tip #10: Why create such a confusing way to combine data?
 
-These are the main ones. I'll stop here.
+Blame it on Codd. He invented this relational algebra which was turned into the SQL we know today. He was a mathematician. Can you tell? 
+
+SQL has many advantages. It is highly expressive and compact. It works well for multiple tables since the result of a join can be input to a further join. SQL can be quickly and automatically translated into fast, parallel code optimized to the size and content of the data sets. It has saved many person-years of writing tedious code. It has withstood the test of time as a standard. It has large investments by many companies and universities keeping it useful for the foreseeable future. A technical marvel.
+
 
