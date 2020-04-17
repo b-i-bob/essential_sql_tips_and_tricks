@@ -1,29 +1,30 @@
 # Query from more than one table.
 
-You are in luck if you can query from just one table. Someone has already done the work to decide what each row in the table
-represents, what each column represents, which columns can have NULL values, which columns have unique values, etc. They have even loaded the data. For multi-table queries you'll need to make those decisions about the combined data set.
+The SQL standard specifies an order of operations such that the combining of tables happens before anything else. Therefore the best game plan for multi-table queries is to figure out how to combine the tables first. 
 
 ## How many matches will there be for each row?
 
-Let's assume you have two tables to query and you know which columns relate them. 
+Let's assume you have two tables to query, the first with N rows and the second with M rows, and you know which columns you want to use to relate them. 
 
-We assume that the first table has N rows. The relationship between two tables can be characterized by the of number rows in the second table which will match each row in the first table. The interesting possibilities are:
+A relationship between two tables can be characterized by the of number rows in the second table which will match each row in the first table. 
+
+The interesting matching possibilities are:
 
 relationship | matching rows | min rows | max rows | missing rows? | duplicate rows?
---- | ---
+--- | --- | --- | --- | --- | ---
 N:1 | exactly 1 row | N | N | No | No
 N:0..1 | at most 1 row | 0 | N | Maybe | No
 N:M | any number of rows | 0 | N\*M | Maybe | Maybe
 
-The relationship bounds the range of rows you can get from combining the data from two tables into one result set. In the N:1 case there cannot be any missing data or duplications. In the other cases you may need to exert extra control to deal with missing data or duplications resulting from combining the tables.
+Notice that the relationship bounds the range of rows you get from combining the data into one result set before filtering. In the N:1 case there is never missing data nor duplications. In the other cases you may need to exert extra control to deal with missing data or duplications resulting from combining the tables.
 
-What if you do not know or are not sure which columns relate two tables? Look at the data in both tables, make a guess, and query the data to verify the relationship. See the note on [data profiling](https://github.com/b-i-bob/essential_sql_tips_and_tricks/blob/master/getting_to_know_your_data.md).
+What if you are not sure which columns relate the two tables? Look at the data in both tables, make a guess, and query the data to verify the relationship. See the note on [data profiling](https://github.com/b-i-bob/essential_sql_tips_and_tricks/blob/master/getting_to_know_your_data.md).
 
-What if the data does not have a simple relationship due to missing rows, inconsitencies, invalid values, or has a type mismatch? See the note on [cleaning data](ADD LINK HERE).
+What if the data does not have a simple relationship due to missing rows, inconsistencies, invalid values, or have mismatched types? See the note on [cleaning data](ADD LINK HERE).
 
 ## SQL constructs for combining data from two tables.
 
-Sub-selects, `JOIN`s, and `UNION`s are the SQL building blocks for combining tables. They give you different ways to control for missing data and duplications. 
+Sub-selects, `JOIN`s, and `UNION`s are the SQL building blocks for combining tables. They give you different ways to control for missing data and duplications in the result set.
 
 Here is a summary of those SQL constructs. 
 
@@ -49,9 +50,9 @@ SELECT U.username,
        (SELECT L.city FROM locations AS L WHERE U.location_id = L.id) AS city    
 FROM users AS U
 ```
-In this example the zipcode and the city are retrieved from the locations table using sub-selects in the select clause. 
+In this example the zipcode and the city are retrieved from the locations table using sub-selects in the select clause. The sub-selects are written as select statements inside parenthesis. They need an `AS` clause to specific the column name. The `SELECT` clause in the sub-select chooses one expression which could be a scalar calculation (X+1), an aggregate calculation (SUM(X)), a single column (X), or a literal constant like 42 or '90210'. The `WHERE` clause in the sub-select specifies how to find the rows in the second table and usually refers to some columns in the first table. 
 
-The relationship used here is the location_id in the users table matches an id in the locations table. If this relationship is N:1 every sub-select will return 1 value. Otherwise, an error will be thrown if a sub-select returns more than 1 value or a `NULL` will be returned for rows where the sub-select does not find any values.
+Sub-selects are expected to return a single value, perfect for this use case. The relationship used here is the location_id in the users table matches an id in the locations table. If this relationship is N:1 every sub-select will return one value. Otherwise, an error will be thrown if a sub-select returns more than 1 value or a `NULL` will be returned for rows where the sub-select does not find any values.
 
 ## Tip #2: Use a `JOIN` to get 1 or more columns from another table
 
