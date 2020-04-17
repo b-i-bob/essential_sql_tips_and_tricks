@@ -1,36 +1,39 @@
 # Query from more than one table.
 
 You are in luck if you can query from just one table. Someone has already done the work to decide what each row in the table
-represents, what each column represents, which columns can have NULL values, which columns have unique values, etc. They have even loaded the data.
+represents, what each column represents, which columns can have NULL values, which columns have unique values, etc. They have even loaded the data. For multi-table queries you'll need to make those decisions about the combined data set.
 
-For multi-table queries you'll need to specify how to combine two tables at a time 
-using sub-selects, `JOIN`s, and `UNION`s. 
-
-## How many matches will there be for each row: 0, 1, or many?
+## How many matches will there be for each row?
 
 Let's assume you have two tables to query and you know which columns relate them. 
 
-Look at the data and query the data in both tables to verify the relationships. The relationship between two tables can be categorized by number rows in the first table and the number of rows in the second table which will match. The interesting possibilities are:
+We assume that the first table has N rows. The relationship between two tables can be characterized by the of number rows in the second table which will match each row in the first table. The interesting possibilities are:
 
-relationship | description | min rows | max rows | missing rows | duplicate rows
+relationship | matching rows | min rows | max rows | missing rows? | duplicate rows?
 --- | ---
-N:1 | every row in the 1st table matches 1 row in the 2nd table | N | N | No | No
-N:0..1 | every row in the 1st table matches 0 or 1 rows in the 2nd table | 0 | N | Maybe | No
-N:M | every row in the 1st table matches 0, 1, or more rows in the 2nd table | 0 | N\*M | Maybe | Maybe
+N:1 | exactly 1 row | N | N | No | No
+N:0..1 | at most 1 row | 0 | N | Maybe | No
+N:M | any number of rows | 0 | N\*M | Maybe | Maybe
 
-This relationship is soley determined by the data present in the relating columns. It bounds the range of rows you can get from reuniting the data from two tables into one result set. In the N:1 case you need to do nothing more to control for missing data or duplications, there cannot be any. That is why some columns are carefully controlled to have distinct values. In the other cases you have some further choices to make to exert control.
+The relationship bounds the range of rows you can get from combining the data from two tables into one result set. In the N:1 case there cannot be any missing data or duplications. In the other cases you may need to exert extra control to deal with missing data or duplications resulting from combining the tables.
+
+What if you do not know or are not sure which columns relate two tables? Look at the data in both tables, make a guess, and query the data to verify the relationship. See the note on [data profiling](https://github.com/b-i-bob/essential_sql_tips_and_tricks/blob/master/getting_to_know_your_data.md).
+
+What if the data does not have a simple relationship due to missing rows, inconsitencies, invalid values, or has a type mismatch? See the note on [cleaning data](ADD LINK HERE).
 
 ## SQL constructs for combining data from two tables.
 
-Tables can be combined in a variety of ways. SQL gives you several constructs to build from. You write code in SQL using these constructs to specify the logic to control for missing data and duplications. Zero matches will result in missing rows. N matches will result in duplicate rows. Here is a summary:
+Sub-selects, `JOIN`s, and `UNION`s are the SQL building blocks for combining tables. They give you different ways to control for missing data and duplications. 
+
+Here is a summary of those SQL constructs. 
 
 | construct | match 0 rows | match 1 row | match N rows |
 | :--- | :--- | :--- | :--- |
 | sub-select | `NULL` value | 1 value | query error |
 | INNER JOIN | no row | 1 row | N rows |
-| LEFT OUTER JOIN | values from second table will be `NULL` | 1 row | N rows |
-| RIGHT OUTER JOIN | values from first table will be `NULL` | 1 row | N rows |
-| FULL OUTER JOIN | values from non-matching table will be `NULL` | 1 row | N rows |
+| LEFT OUTER JOIN | 1 row with `NULL` values from the second table | 1 row | N rows |
+| RIGHT OUTER JOIN | 1 row with `NULL` values from the first table | 1 row | N rows |
+| FULL OUTER JOIN | 1 row with `NULL` values from the non-matching table | 1 row | N rows |
 | UNION ALL | N/A | N/A | N/A |
 | UNION | N/A | N/A | N/A |
 
@@ -46,7 +49,9 @@ SELECT U.username,
        (SELECT L.city FROM locations AS L WHERE U.location_id = L.id) AS city    
 FROM users AS U
 ```
-An error will be thrown if the sub-select returns more than 1 value. No value will be returned as `NULL`.
+In this example the zipcode and the city are retrieved from the locations table using sub-selects in the select clause. 
+
+The relationship used here is the location_id in the users table matches an id in the locations table. If this relationship is N:1 every sub-select will return 1 value. Otherwise, an error will be thrown if a sub-select returns more than 1 value or a `NULL` will be returned for rows where the sub-select does not find any values.
 
 ## Tip #2: Use a `JOIN` to get 1 or more columns from another table
 
@@ -55,13 +60,14 @@ SELECT U.username, L.zipcode, L.city
 FROM users AS U
 JOIN locations AS L ON U.location_id = L.id
 ```
+This is another way to get values from another table. It uses the same relationship between the users and locations tables.
 
 A `JOIN` is different from a sub-select in two important ways: 
 (1) Duplication. Having multiple matches to the second table will output multiple
-rows, one for each match in the second table. 
+rows, one for each match in the second table duplicating the values in the first table. 
 (2) Missing rows. If there is no match the values for that row from the first will not be output. It will be dropped from the result set.
 
-## Tip #3: Use a `LEFT JOIN` to retain every row in the first table.
+## Tip #3: Use a `LEFT JOIN` to retain every row, avoid missing rows, from the first table.
 
 ```sql
 SELECT U.username, L.zipcode, L.city
@@ -106,7 +112,7 @@ FROM users AS C
 JOIN users AS P ON C.parent_id = P.id
 ```
 
-Another case is when you want to compare rows to some other rows. This selects only the oldest children for each parent. 
+Another case is when you want to compare rows to some other rows. This selects only the oldest child for each parent. 
 
 ```sql
 SELECT C.username AS oldest_child, P.username AS parent
@@ -119,18 +125,36 @@ It works by filtering out any children who have older siblings.
 
 # Tip #9: Deduplicating result sets.
 
-One simple way to remove duplicates is to group by every column in the `SELECT` clause.
+One simple way to remove duplicates is to use `DISTINCT`. This example shows which birthdays are in the users table.
 
 ```sql
-SELECT C.username AS oldest_child, C.date_of_birth
+SELECT DISTINCT C.date_of_birth
 FROM users AS C
-GROUP BY 1,2
+```
+
+Another way is to `GROUP BY` every column in the `SELECT` clause. The `ORDER BY` clause is optional.
+
+```sql
+SELECT C.date_of_birth
+FROM users AS C
+GROUP BY 1
+```
+
+One advantage of the `GROUP BY` solution is that you can create some aggreated measures at the same time. This example shows the number of user who where born on the same day. This `ORDER BY` clause puts the birthday shared by the most users at the top of the result set. Without the `ORDER BY` clause you get what you get.
+
+```sql
+SELECT C.date_of_birth, count(*) as number_of_users
+FROM users AS C
+GROUP BY 1
+ORDER BY 2 DESC
 ```
 
 # Tip #10: Why create such a confusing way to combine data?
 
-Blame it on Codd. He invented this relational algebra which was turned into the SQL we know today. He was a mathematician. Can you tell? 
+Partly, I blame it on Codd. He invented this relational algebra which was turned into the SQL we know today. He was a mathematician. Can you tell? 
 
-SQL has many advantages. It is highly expressive and compact. It works well for multiple tables since the result of a join can be input to a further join. SQL can be quickly and automatically translated into fast, parallel code optimized to the size and content of the data sets. It has saved many person-years of writing tedious code. It has withstood the test of time as a standard. It has large investments by many companies and universities keeping it useful for the foreseeable future. A technical marvel.
+The other part is flexibility and control. There are many potential ways to combine data from two tables which yield different result sets. The DBMS does not guess how you want to combine tables each time. You need to tell it each and every time as part of the query.
+
+SQL has many advantages. It is highly expressive and compact. SQL can be quickly and automatically translated into fast, parallel code optimized to the size and content of the data sets. It has saved many person-years of writing tedious code. It has withstood the test of time as a standard. Many companies and universities continue to make investments in SQL keeping it useful for the foreseeable future. It is a technical marvel well worth your time learning.
 
 
