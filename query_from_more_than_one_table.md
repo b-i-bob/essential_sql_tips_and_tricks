@@ -1,10 +1,10 @@
 # Query from more than one table.
 
-The SQL standard specifies an order of operations such that the combining of tables happens before anything else. Therefore the best game plan for multi-table queries is to figure out how to combine the tables first. 
+The SQL language standard specifies an order of operations such that the combining of tables happens before anything else. Therefore, when creating multi-table queries it is best to figure out how to combine the tables before focusing on anything else. 
 
 ## How many matches will there be for each row?
 
-Let's assume you have two tables to query, the first with N rows and the second with M rows, and you know which columns you want to use to relate them. 
+Let's assume you have two tables to query, the first with N rows and the second with M rows, and you know which columns you want to use to relate the tables. 
 
 A relationship between two tables can be characterized by the of number rows in the second table which will match each row in the first table. 
 
@@ -16,9 +16,11 @@ N:1 | exactly 1 row | N | N | No | No
 N:0..1 | at most 1 row | 0 | N | Maybe | No
 N:M | any number of rows | 0 | N\*M | Maybe | Maybe
 
-Notice that the relationship bounds the range of rows you get from combining the data into one result set before filtering. In the N:1 case there is never missing data nor duplications. In the other cases you may need to exert extra control to deal with missing data or duplications resulting from combining the tables.
+Notice that the relationship bounds the range of rows you get. 
 
-What if you are not sure which columns relate the two tables? Look at the data in both tables, make a guess, and query the data to verify the relationship. See the note on [data profiling](https://github.com/b-i-bob/essential_sql_tips_and_tricks/blob/master/getting_to_know_your_data.md).
+In the N:1 case there is never missing data nor duplications. In the N:0..1 cases you may not match some rows but no duplicates will be formed. In the N:M case you may wish to deal with missing data or duplications resulting from combining the tables.
+
+What if you are not sure which columns relate the two tables? Look at the data in both tables, make a guess or phone a friend, and query the data to verify the data relationship. See the note on [data profiling](https://github.com/b-i-bob/essential_sql_tips_and_tricks/blob/master/getting_to_know_your_data.md).
 
 What if the data does not have a simple relationship due to missing rows, inconsistencies, invalid values, or have mismatched types? See the note on [cleaning data](ADD LINK HERE).
 
@@ -50,9 +52,9 @@ SELECT U.username,
        (SELECT L.city FROM locations AS L WHERE U.location_id = L.id) AS city    
 FROM users AS U
 ```
-In this example the zipcode and the city are retrieved from the locations table using sub-selects in the select clause. The sub-selects are written as select statements inside parenthesis. They need an `AS` clause to specific the column name. The `SELECT` clause in the sub-select chooses one expression which could be a scalar calculation (X+1), an aggregate calculation (SUM(X)), a single column (X), or a literal constant like 42 or '90210'. The `WHERE` clause in the sub-select specifies how to find the rows in the second table and usually refers to some columns in the first table. 
+In this example the zipcode and the city are retrieved from the locations table using sub-selects in the select clause. The sub-selects are written as select statements inside parentheses. They need an `AS` clause to specify a column name. The `SELECT` clause in the sub-select chooses one value. The `WHERE` clause in the sub-select specifies how to find the rows in the second table and usually refers to some columns in the first table. 
 
-Sub-selects are expected to return a single value, perfect for this use case. The relationship used here is the location_id in the users table matches an id in the locations table. If this relationship is N:1 every sub-select will return one value. Otherwise, an error will be thrown if a sub-select returns more than 1 value or a `NULL` will be returned for rows where the sub-select does not find any values.
+Sub-selects are expected to return a single value, perfect for this use case. The relationship used here is the location_id in the users table matches an id in the locations table. An error will be thrown if a sub-select returns more than 1 value. A `NULL` will be returned for rows where the sub-select does not find any values.
 
 ## Tip #2: Use a `JOIN` to get 1 or more columns from another table
 
@@ -76,9 +78,9 @@ FROM users AS U
 LEFT JOIN locations AS L ON U.location_id = L.id
 ```
 
-Didn't like how the `JOIN` result was missing some rows from the first table? Then `LEFT JOIN` is for you. The rows that failed to join to any rows in the second table will have NULL for the second table columns. In this case all `username`s will appear in the result set although the `zipcode` and `city` may be NULL.
+The rows in the first table that fail to `LEFT JOIN` to any rows in the second table will return NULL for any column in the second table. Put it another way, all rows from the first table will appear in the result set; unmatched rows in the second table will **not** appear in the result set. In this case all `username`s will appear in the result set although the `zipcode` and `city` may be NULL.
 
-The order of the tables in the `LEFT JOIN` matters. The first table is the driving table and the rows in the second table are matched to it. Put it another way, unmatched rows in the second table will not appear in the result set.
+The order of the tables in the `LEFT JOIN` matters. The first table is the base table and the rows in the second table are matched to it. 
 
 ## Tip #4: Don't use `RIGHT JOIN`.
 
@@ -86,13 +88,11 @@ Rewrite your query using a `LEFT JOIN`.
 
 ## Tip #5: Don't use `NATURAL JOIN`.
 
-The database interprets a `NATURAL JOIN` by guessing that columns with the same name are the columns to use to join the tables. For readability, it is better to use another `JOIN` type and explicitly specify in the `ON` clause the columns to join.
+The database processes a `NATURAL JOIN` by guessing which columns to use to join the tables. For readability, it is better to use another `JOIN` type and explicitly specify the columns to join in the `ON` clause.
 
 ## Tip #6: Use `FULL OUTER JOIN` when you need to retain all rows from both tables.
 
 A `FULL OUTER JOIN` is used when you want all rows in both the first and second table to appear in the result set even when they match no rows in the other table. Think of this as a `UNION` of a `LEFT OUTER JOIN` and a `RIGHT OUTER JOIN`. Better yet, don't.
-
-A way to combine two tables into one result set is `SELECT * from T1 FULL OUTER JOIN T2 ON FALSE`. These are desperate measures.
 
 A `CROSS JOIN` IS a `FULL OUTER JOIN` without an `ON` clause. You can think of it as 
 `SELECT * FROM T1 FULL OUTER JOIN T2 ON TRUE`. It crosses an N row table with an M row table yielding an N\*M row table. The result set can be huge and it is not usually what you want. All the other joins yield subsets of the `CROSS JOIN`.
