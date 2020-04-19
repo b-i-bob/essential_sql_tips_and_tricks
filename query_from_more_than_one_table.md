@@ -1,10 +1,14 @@
 # Query from more than one table.
 
-The SQL language standard specifies an order of operations such that the combining of tables happens before anything else. Therefore, when creating multi-table queries it is best to figure out how to combine the tables before focusing on anything else. 
+## Preparing to write multi-table queries
+
+You have some idea of what you want in the result set. Be clear about what you want the grain of the result set to be. Is each row one user, one day, one group of users? The grain may be the same as or different from any of the base tables.
+
+The next step is to focus on how to combine the tables. Combining tables in SQL happens before anything else when the query executes.
 
 ## How many matches will there be for each row?
 
-Let's assume you have two tables to query, the first with N rows and the second with M rows, and you know which columns you want to use to relate the tables. 
+Let's assume you have two base tables to query, the first with N rows and the second with M rows, and you know which columns you want to use to relate the tables. 
 
 A relationship between two tables can be characterized by the of number rows in the second table which will match each row in the first table. 
 
@@ -16,9 +20,9 @@ N:1 | exactly 1 row | N | N | No | No
 N:0..1 | at most 1 row | 0 | N | Maybe | No
 N:M | any number of rows | 0 | N\*M | Maybe | Maybe
 
-Notice that the relationship bounds the range of rows you get. 
+Notice that the type of relationship bounds the range of rows you get. 
 
-In the N:1 case there is never missing data nor duplications. In the N:0..1 cases you may not match some rows but no duplicates will be formed. In the N:M case you may wish to deal with missing data or duplications resulting from combining the tables.
+In the N:1 case there is never missing data nor are there ever duplications. In the N:0..1 cases you may not match some rows but no duplicates will be formed. In the N:M case you may need to deal with missing data or duplications resulting from combining the tables.
 
 What if you are not sure which columns relate the two tables? Look at the data in both tables, make a guess or phone a friend, and query the data to verify the data relationship. See the note on [data profiling](https://github.com/b-i-bob/essential_sql_tips_and_tricks/blob/master/getting_to_know_your_data.md).
 
