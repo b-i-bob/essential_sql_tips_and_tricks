@@ -127,7 +127,7 @@ WHERE OLDER.id IS NULL
 ```
 It works by filtering out any children who have older siblings. 
 
-# Tip #9: Deduplicating result sets.
+## Tip #9: Deduplicating result sets.
 
 One simple way to remove duplicates is to use `DISTINCT`. This example shows which birthdays are in the users table.
 
@@ -153,7 +153,7 @@ GROUP BY 1
 ORDER BY 2 DESC
 ```
 
-# Tip #10: Why create such a confusing way to combine data?
+## Tip #10: Why create such a confusing way to combine data?
 
 Partly, I blame it on Codd. He invented this relational algebra which was turned into the SQL we know today. He was a mathematician. Can you tell? 
 
