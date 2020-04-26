@@ -2,13 +2,13 @@
 
 ## Preparing to write multi-table queries
 
-You have some idea of what you want in the result set. Be clear about what you want the grain of the result set to be. Is each row one user, one day, one group of users? The grain may be the same as or different from any of the base tables.
+Be clear about what you want the grain of the result set to be. Is each row one user, one day, one group of users from each country? The grain may be the same as or different from any of the base tables.
 
 The next step is to focus on how to combine the tables. Combining tables in SQL happens before anything else when the query executes.
 
 ## How many matches will there be for each row?
 
-Let's assume you have two base tables to query, the first with N rows and the second with M rows, and you know which columns you want to use to relate the tables. 
+Let's assume you have two base tables to query, the first with N rows and the second with M rows, and you know which columns you want to use to relate the tables. The number of rows in the result set depends on the relationship between the tables you choose to use and how you choose to combine them. When combining two tables you can get as few as 0 rows or as many as N\*M rows in the result set. Your choices make a difference!
 
 A relationship between two tables can be characterized by the of number rows in the second table which will match each row in the first table. 
 
@@ -20,8 +20,6 @@ N:1 | exactly 1 row | N | N | No | No
 N:0..1 | at most 1 row | 0 | N | Maybe | No
 N:M | any number of rows | 0 | N\*M | Maybe | Maybe
 
-Notice that the type of relationship bounds the range of rows you get. 
-
 In the N:1 case there is never missing data nor are there ever duplications. In the N:0..1 cases you may not match some rows but no duplicates will be formed. In the N:M case you may need to deal with missing data or duplications resulting from combining the tables.
 
 What if you are not sure which columns relate the two tables? Look at the data in both tables, make a guess or phone a friend, and query the data to verify the data relationship. See the note on [data profiling](https://github.com/b-i-bob/essential_sql_tips_and_tricks/blob/master/getting_to_know_your_data.md).
@@ -30,7 +28,7 @@ What if the data does not have a simple relationship due to missing rows, incons
 
 ## SQL constructs for combining data from two tables.
 
-Sub-selects, `JOIN`s, and `UNION`s are the SQL building blocks for combining tables. They give you different ways to control for missing data and duplications in the result set.
+SQL gives you several ways to control for missing data and duplications in the result set. The SQL building blocks for combining tables are sub-selects, `JOIN`s, and `UNION`s. 
 
 Here is a summary of those SQL constructs. 
 
@@ -74,7 +72,7 @@ A `JOIN` is different from a sub-select in two important ways:
 rows, one for each match in the second table duplicating the values in the first table. 
 (2) Missing rows. If there is no match the values for that row from the first will not be output. It will be dropped from the result set.
 
-## Tip #3: Use a `LEFT JOIN` to retain every row, avoid missing rows, from the first table.
+## Tip #3: Use a `LEFT JOIN` to avoid missing rows from the first table.
 
 ```sql
 SELECT U.username, L.zipcode, L.city
@@ -103,7 +101,8 @@ A `CROSS JOIN` IS a `FULL OUTER JOIN` without an `ON` clause. You can think of i
 
 ## Tip #7: Use `UNION` or `UNION ALL` to stack two tables which have the same columns.
 
-If you have twelve identical tables, one for each month, you can `UNION` them together to combine them into one virtual table.
+If you have twelve identical tables, one for each month, you can `UNION` them together to combine all their rows into one virtual table which has the same column names.
+
 `UNION` sorts the result set and remove duplicates. `UNION ALL` is faster becasue it avoids sorting. Use it when de-duplication is not needed.
 
 ## Tip #8: Some queries require a self-join.
@@ -158,7 +157,7 @@ ORDER BY 2 DESC
 
 Partly, I blame it on Codd. He invented this relational algebra which was turned into the SQL we know today. He was a mathematician. Can you tell? 
 
-The other part is flexibility and control. There are many potential ways to combine data from two tables which yield different result sets. The DBMS does not guess how you want to combine tables each time. You need to tell it each and every time as part of the query.
+The other part is flexibility and control. There are many potential ways to combine data from two tables which yield different result sets. The DBMS does not guess how you want to combine tables each time. You need to tell it each and every time as part of the query. The SQL language uses a relatively small number of constructs to encode a large number of possible ways to combine two tables.
 
 SQL has many advantages. It is highly expressive and compact. SQL can be quickly and automatically translated into fast, parallel code optimized to the size and content of the data sets. It has saved many person-years of writing tedious code. It has withstood the test of time as a standard. Many companies and universities continue to make investments in SQL keeping it useful for the foreseeable future. It is a technical marvel well worth your time learning.
 
