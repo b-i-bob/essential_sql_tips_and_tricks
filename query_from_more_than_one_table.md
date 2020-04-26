@@ -157,8 +157,8 @@ ORDER BY 2 DESC
 
 Partly, I blame it on Codd. He invented this relational algebra which was turned into the SQL we know today. He was a mathematician. Can you tell? 
 
-The other part is flexibility and control. There are many potential ways to combine data from two tables which yield different result sets. The DBMS does not guess how you want to combine tables each time. You need to tell it each and every time as part of the query. The SQL language uses a relatively small number of constructs to encode a large number of possible ways to combine two tables.
+The other part is flexibility and control. The SQL language provides a relatively small number of constructs which can be used to encode a large number of possible ways to combine two tables and yield different result sets. The DBMS does not guess how you want to combine tables. You need to tell it each and every time as part of the query. 
 
-SQL has many advantages. It is highly expressive and compact. SQL can be quickly and automatically translated into fast, parallel code optimized to the size and content of the data sets. It has saved many person-years of writing tedious code. It has withstood the test of time as a standard. Many companies and universities continue to make investments in SQL keeping it useful for the foreseeable future. It is a technical marvel well worth your time learning.
+SQL has many advantages. It is highly expressive and compact. SQL can be automatically translated into code optimized to the size and content of the data sets. It has saved many programmer-years of writing tedious code. It has withstood the test of time as a standard. Many companies and universities continue to make investments in SQL keeping it useful for the foreseeable future. It is a technical marvel well worth your time learning.
 
 
