@@ -1,18 +1,75 @@
 # Perhaps You Need to Write A Multi-Level Query
 
-The expressiveness of a simple SQL query `SELECT ... FROM ... JOIN ...` only goes so far. 
-SQL expressions can easily combine the values in a single row.
-For values not in the same row you need to bring them to where you can address them, usually as additonal columns in the same virtual table..
-You may need a separate query to prepare values which require complex transformations.
-Multi-level queries are useful when you can break down the calculation into separate steps.
+A simple SQL query of the form `SELECT ... FROM ...` only goes so far. Its expressive power can be expanded by writing a query where the `FROM` clause is another query. SQL permits as many levels as you need!
+
+```sql
+SELECT ... FROM
+    (
+    SELECT ... FROM
+        (
+        SELECT ... FROM A ...
+        ) AS B
+    ) AS C
+```
 
 ## HOW
-There are a few ways to create multi-level queries in SQL.
+There are a few ways to create multi-level queries in SQL. Each makes different tradeoffs in readability, control, and performance to accomplish roughly the same thing. 
 
-### Sub-select in the FROM or JOIN clause.
-### Common table expressions.
-### Build a view.
-### Materialize an intermediate result set into a table.
+### Use a sub-select in the SELECT clause.
+```sql
+SELECT TableA.X sd XfromA, 
+       (SELECT TableB.Y FROM TableB WHERE TableA.b_id = TableB.id) as YfromB
+FROM TableA
+```
+*This is appropriate when you just need a single value from the supplemental table.*
+
+### Use a sub-select in the FROM OR JOIN clause.
+```sql
+SELECT TableA.X sd XfromA, SS_B.YfromB
+FROM TableA
+    LEFT JOIN (SELECT TableB.id, TableB.Y as YfromB FROM TableB) AS SS_B ON TableA.b_id = SS_B.id
+```
+*This is best when you need multiple values from the supplemental table.*
+
+### Use a common table expression.
+```sql
+WITH CTE_B AS
+    (
+    SELECT TableB.id, TableB.Y as YfromB FROM TableB
+    )
+SELECT TableA.X AS XfromA, CTE_B.YfromB
+FROM TableA
+JOIN CTE_B ON TableA.b_id = CTE_B.id
+```
+*This is best to show each level in the calculation in order or when you want to use the CTE more than once in the query.*
+
+### Create a view. Use the view.
+```sql
+CREATE OR REPLACE VIEW V_B AS
+    (
+    SELECT TableB.id, TableB.Y as YfromB FROM TableB
+    )
+    
+SELECT TableA.X AS XfromA, V_B.YfromB
+FROM TableA
+JOIN V_B ON TableA.b_id = V_B.id
+```
+*This is best when you want to centralize logic to use across multiple queries.*
+The view is a named stored query. It can be used most places a table can used for convenience. 
+
+### Materialize a result set into a table. Use the table.
+```sql
+CREATE OR REPLACE TABLE T_B AS
+    (
+    SELECT TableB.id, TableB.Y as YfromB FROM TableB
+    )
+    
+SELECT TableA.X AS XfromA, T_B.YfromB
+FROM TableA
+JOIN T_B ON TableA.b_id = T_B.id
+```
+*This is best when a view is too slow and when you can create the table less often than every query.*
+There are even more elaborate ways to create a table. Some databases support materialied view creation which is similar to creating your own table. You can create temporary tables which are automatically deleted when the database session ends. You can incrementally maintain a table instead of rebulding it from scratch each time. You can compute data sets using other tools such as python and bulk load the data into a table.
 
 ## WHEN
 Let's consider some example mutli-level queries and see if they can be written more simply as single-level queries.
@@ -36,12 +93,12 @@ WHERE U.date_of_birth = (SELECT MAX(Y.date_of_birth) FROM users AS Y)
 LIMIT 1
 ```
 
-Can this be simplified to a single-level query? Yes! There are no duplicates using this version. 
-I think you'll agree that this is simplier than the first query.
-Use one-level queries when you find them simplier to understand. There are fewer places for bugs to hide.
+Can this be simplified to a single-level query? Yes! Just use the inner query. 
 ```sql
 SELECT MAX(Y.date_of_birth) FROM users AS Y
 ```
+I think you'll agree that this is simplier than the first query.
+Use one-level queries when you find them simplier to understand. There are fewer places for bugs to hide.
 
 Note: the database will aggregate the result without a `GROUP BY` clause when all the expressions are aggregates like COUNT(), SUM(), MAX(), etc..
 
@@ -88,6 +145,13 @@ SELECT U.username, FIRST_VALUE(U.date_of_birth) OVER (ORDER BY U.date_of_birth D
 FROM users AS U
 ```
 
-### Tip #3: What is the range of user ages?
-### Tip #4: What is the birthday of the 2nd youngest user?
-### Tip #5: How many users are younger than the average user?
+### Tip #3: What is the name and birthday of the 2nd youngest users?
+
+Let me clarify by saying its the user who are youngest but not born on the same day as the youngest users.
+
+
+### Tip #4: How many users are younger than the average user?
+### Tip #5: In which years were users born in every month?
+### Tip #6: Which users are multiples (twins, triplets, quadruplets, ...)?
+### Tip #7: Which users share their date of birth with another user?
+### Tip #8: What is the distribution of the number of users born in any year?
