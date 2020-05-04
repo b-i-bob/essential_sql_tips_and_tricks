@@ -7,13 +7,13 @@ SELECT ... FROM
     (
     SELECT ... FROM
         (
-        SELECT ... FROM A ...
+        SELECT ... FROM A
         ) AS B
     ) AS C
 ```
 
 ## HOW
-There are a few ways to create multi-level queries in SQL. Each makes different tradeoffs in readability, control, and performance to accomplish roughly the same thing. 
+There are a few ways to create multi-level queries in SQL. Each makes different tradeoffs in readability, control, and performance. 
 
 ### Use a sub-select in the SELECT clause.
 ```sql
@@ -55,6 +55,7 @@ FROM TableA
 JOIN V_B ON TableA.b_id = V_B.id
 ```
 *This is best when you want to centralize logic in one place (the view) to use across multiple queries.*
+
 The view is a named stored query. It can be used most places a table can used for convenience. 
 
 ### Materialize a result set into a table. Use the table.
@@ -70,7 +71,7 @@ JOIN T_B ON TableA.b_id = T_B.id
 ```
 *This is best when a view is too slow to query and when the table can be refreshed often enough for the use case.*
 
-There are even more elaborate ways to create a table. Some databases support materialied view creation which is similar to creating your own table. You can create temporary tables which are automatically deleted when the database session ends. You can incrementally maintain a table instead of rebulding it from scratch each time. You can compute data sets using other tools such as python and load the data into a table.
+There are even more elaborate ways to create a table for multi-level queries. Some databases support materialied views which are similar to tables. You can create temporary tables which are automatically deleted when the database session ends. You can often incrementally maintain a table instead of rebulding it from scratch each time. You can compute data sets using other tools such as python and load the data into a table.
 
 ## WHEN
 Let's consider some example mutli-level queries and see if they can be written more simply as single-level queries.
@@ -98,8 +99,8 @@ Can this be simplified to a single-level query? Yes! Just use the inner query.
 ```sql
 SELECT MAX(Y.date_of_birth) FROM users AS Y
 ```
-I think you'll agree that this is simplier than the first query.
-Use one-level queries when you find them simplier to understand. There are fewer places for bugs to hide.
+I think you'll agree that this is simplier.
+Simplier one-level queries have fewer places for bugs to hide. Use them when possible.
 
 Note: the database will aggregate the result without a `GROUP BY` clause when all the expressions are aggregates like COUNT(), SUM(), MAX(), etc..
 
@@ -128,10 +129,12 @@ FROM (
 WHERE X.date_of_birth = youngest_dob
 ```
 
+The multi-level query is necessary here because the window function FIRST_VALUE() cannot be directly used in the `WHERE` clause of the outer query. The Postgresql documentation says:
+> Window functions are permitted only in the SELECT list and the ORDER BY clause of the query. They are forbidden elsewhere, such as in GROUP BY, HAVING and WHERE clauses. This is because they logically execute after the processing of those clauses. Also, window functions execute after regular aggregate functions.
+
 If you just want one youngest user you need to break the potential tie and return just one.  
 Here we break the time by using alphabetical order and the `LIMIT` clause.  
 Some SQL systems use `SELECT TOP 1 ...` instead of or in addition to `LIMIT`.
-Avoid non-deterministic queries. 
 An `ORDER BY` clause may be required so that the query returns the same result when given the same source data. 
 
 ```sql
