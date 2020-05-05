@@ -1,6 +1,6 @@
 # Perhaps You Need to Write A Multi-Level Query
 
-A single-level SQL query of the form `SELECT ... FROM ...` has limited expressive power. Combining multiple queries into a multi-level query expands the kinds of data transformations which can be performed. SQL permits as many levels as you need!
+A single-level SQL query of the form `SELECT ... FROM ...` has limited expressive power. Combining multiple queries into one multi-level query expands the kinds of data transformations which can be performed. SQL permits as many levels as you need!
 
 ```sql
 SELECT ... FROM
@@ -19,11 +19,11 @@ There are a few ways to code multi-level queries in SQL. Each makes different tr
 
 ### Use a sub-select in the SELECT clause.
 ```sql
-SELECT TableA.X, 
-       (SELECT TableB.Y FROM TableB WHERE TableA.b_id = TableB.id) AS Y
+SELECT TableA.x, 
+       (SELECT TableB.y FROM TableB WHERE TableA.b_id = TableB.id) AS y
 FROM TableA
 ```
-*This is appropriate when you just need a single value from another table. Y from tableB in this example.*
+*This is appropriate when you just need a single value from another table. Y in this example.*
 
 ### Use a sub-select in the FROM OR JOIN clause.
 ```sql
@@ -145,8 +145,10 @@ WHERE X.date_of_birth = youngest_dob
 The multi-level query is necessary here because the window function FIRST_VALUE() cannot be directly used in the `WHERE` clause of the outer query. The Postgresql documentation says:
 > Window functions are permitted only in the SELECT list and the ORDER BY clause of the query. They are forbidden elsewhere, such as in GROUP BY, HAVING and WHERE clauses. This is because they logically execute after the processing of those clauses. Also, window functions execute after regular aggregate functions.
 
-If you just want one youngest user you need to break the potential tie and return just one.  
-Here we break the time by using alphabetical order and the `LIMIT` clause.  
+Is there a way to get the same result using a single-level query? No.
+
+If you just want one youngest user you need to break the potential tie and return just one name.  
+Here we break the tie by using alphabetical order and the `LIMIT` clause.  
 Some SQL systems use `SELECT TOP 1 ...` instead of or in addition to `LIMIT`.
 An `ORDER BY` clause may be required so that the query returns the same result when given the same source data. 
 
@@ -169,11 +171,7 @@ ORDER BY 2 DESC, 1
 LIMIT 1
 ```
 
-Is there a way to get the same result with possible ties using a single-level query? No.
-
 ### Tip #3: What is the name and birthday of the 2nd youngest users?
-
-Let me clarify by saying its the users who are youngest among those not born on the same day as the youngest users.
 
 ```sql
 SELECT U.username, U.date_of_birth
@@ -185,8 +183,9 @@ WHERE U.date_of_birth =
     WHERE U.date_of_birth < (SELECT MAX(Y.date_of_birth) FROM users AS Y)
     )
 ```
+The innermost `SELECT` is finding the birthday of the youngest users. The `SELECT` in the middle is finding the birthday of the users who are youngest among those not born on the same day as the youngest users. The outermost `SELECT` is returning the name and birthday of the second youngest users.
 
-There is another alternative which uses window functions.
+There is another alternative which uses window functions and one less `SELECT`.
 ```sql
 SELECT X.username, X.date_of_birth
 FROM (
@@ -204,6 +203,8 @@ WHERE X.date_of_birth = second_youngest_dob
 Is there a way to get the same result with possible ties using a single-level query? No.
 
 ### Tip #4: In which years were users born in every month?
+
+
 ### Tip #5: Which users are multiples (twins, triplets, quadruplets, ...)?
 ### Tip #6: Which users share their date of birth with another user?
 ### Tip #7: What is the distribution of the number of users born in any year?
