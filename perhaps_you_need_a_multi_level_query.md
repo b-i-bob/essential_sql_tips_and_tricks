@@ -185,7 +185,7 @@ WHERE U.date_of_birth =
 ```
 The innermost `SELECT` is finding the birthday of the youngest users. The `SELECT` in the middle is finding the birthday of the users who are youngest among those not born on the same day as the youngest users. The outermost `SELECT` is returning the name and birthday of the second youngest users.
 
-There is another alternative which uses window functions and one less `SELECT`.
+There is an alternative which uses window functions and one less `SELECT`.
 ```sql
 SELECT X.username, X.date_of_birth
 FROM (
