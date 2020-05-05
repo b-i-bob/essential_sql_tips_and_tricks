@@ -12,7 +12,7 @@ SELECT ... FROM
     ) AS C
 ```
 
-This article will show that sometimes multi-level queries are necessary and how to code them.
+This article will show that sometimes multi-level queries are necessary. But first lets look at how to code them.
 
 ## HOW
 There are a few ways to code multi-level queries in SQL. Each makes different tradeoffs in readability, control, and performance. 
