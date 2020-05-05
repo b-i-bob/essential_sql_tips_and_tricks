@@ -1,6 +1,6 @@
 # Perhaps You Need to Write A Multi-Level Query
 
-A simple SQL query of the form `SELECT ... FROM ...` only goes so far. Its expressive power can be expanded by writing a query where the `FROM` clause is another query. SQL permits as many levels as you need!
+A single-level SQL query of the form `SELECT ... FROM ...` has limited expressive power. Combining multiple queries into a multi-level query expands the kinds of data transformations which can be performed. SQL permits as many levels as you need!
 
 ```sql
 SELECT ... FROM
@@ -12,22 +12,24 @@ SELECT ... FROM
     ) AS C
 ```
 
+This article will show that sometimes multi-level queries are necessary and how to code them.
+
 ## HOW
-There are a few ways to create multi-level queries in SQL. Each makes different tradeoffs in readability, control, and performance. 
+There are a few ways to code multi-level queries in SQL. Each makes different tradeoffs in readability, control, and performance. 
 
 ### Use a sub-select in the SELECT clause.
 ```sql
-SELECT TableA.X sd XfromA, 
-       (SELECT TableB.Y FROM TableB WHERE TableA.b_id = TableB.id) as YfromB
+SELECT TableA.X, 
+       (SELECT TableB.Y FROM TableB WHERE TableA.b_id = TableB.id) AS Y
 FROM TableA
 ```
-*This is appropriate when you just need a single value from another table.*
+*This is appropriate when you just need a single value from another table. Y from tableB in this example.*
 
 ### Use a sub-select in the FROM OR JOIN clause.
 ```sql
-SELECT TableA.X sd XfromA, SS_B.YfromB
+SELECT TableA.x, SS_B.y, SS_B.z
 FROM TableA
-    LEFT JOIN (SELECT TableB.id, TableB.Y as YfromB FROM TableB) AS SS_B ON TableA.b_id = SS_B.id
+    LEFT JOIN (SELECT id, y, z FROM TableB) AS SS_B ON TableA.b_id = SS_B.id
 ```
 *This is best when you need multiple values from another table.*
 
@@ -35,9 +37,9 @@ FROM TableA
 ```sql
 WITH CTE_B AS
     (
-    SELECT TableB.id, TableB.Y as YfromB FROM TableB
+    SELECT id, y, z FROM TableB
     )
-SELECT TableA.X AS XfromA, CTE_B.YfromB
+SELECT TableA.x, CTE_B.y, CTE_B.z
 FROM TableA
 JOIN CTE_B ON TableA.b_id = CTE_B.id
 ```
@@ -47,46 +49,46 @@ JOIN CTE_B ON TableA.b_id = CTE_B.id
 ```sql
 CREATE OR REPLACE VIEW V_B AS
     (
-    SELECT TableB.id, TableB.Y as YfromB FROM TableB
+    SELECT id, y, z FROM TableB
     )
     
-SELECT TableA.X AS XfromA, V_B.YfromB
+SELECT TableA.x, V_B.y, V_B.z
 FROM TableA
 JOIN V_B ON TableA.b_id = V_B.id
 ```
-*This is best when you want to centralize logic in one place (the view) to use across multiple queries.*
+*This is best when you want to centralize logic in one place (in the view) to use across multiple queries.*
 
-The view is a named stored query. It can be used most places a table can used for convenience. 
+The view is a named stored query. It can be used most places a table name can used. 
 
 ### Materialize a result set into a table. Use the table.
 ```sql
 CREATE OR REPLACE TABLE T_B AS
     (
-    SELECT TableB.id, TableB.Y as YfromB FROM TableB
+    SELECT id, y, z FROM TableB
     )
     
-SELECT TableA.X AS XfromA, T_B.YfromB
+SELECT TableA.x AS XfromA, T_B.y, T_B.z
 FROM TableA
 JOIN T_B ON TableA.b_id = T_B.id
 ```
 *This is best when a view is too slow to query and when the table can be refreshed often enough for the use case.*
 
-There are even more elaborate ways to create a table for multi-level queries. Some databases support materialied views which are similar to tables. You can create temporary tables which are automatically deleted when the database session ends. You can often incrementally maintain a table instead of rebulding it from scratch each time. You can compute data sets using other tools such as python and load the data into a table.
+There are more elaborate ways to stage intermediate results in SQL but they are unfortuantely beyond the scope of this article.
 
 ## WHEN
-Let's consider some example mutli-level queries and see if they can be written more simply as single-level queries.
+Let's consider some mutli-level queries and see if they can be written more simply as single-level queries.
 
 ### Tip #1: What is the birthday of the youngest user?
 This multi-level query first computes the most recent birthday in a sub-select. 
 Then the outer query returns that birthday for every user with that birthday. 
-The birthday will be repeated in case of a tie.
+The birthday will be repeated once for each of the youngest users in the case of a tie.
 ```sql
 SELECT U.date_of_birth
 FROM users AS U
 WHERE U.date_of_birth = (SELECT MAX(Y.date_of_birth) FROM users AS Y)
 ```
 
-If you just want to return one birthday you can use the `LIMIT` clause.  
+If you must return just one birthday you can use `LIMIT`, `DISTINCT`, or `GROUP BY`.  
 
 ```sql
 SELECT U.date_of_birth
@@ -95,14 +97,25 @@ WHERE U.date_of_birth = (SELECT MAX(Y.date_of_birth) FROM users AS Y)
 LIMIT 1
 ```
 
+```sql
+SELECT DISTINCT U.date_of_birth
+FROM users AS U
+WHERE U.date_of_birth = (SELECT MAX(Y.date_of_birth) FROM users AS Y)
+```
+
+```sql
+SELECT U.date_of_birth
+FROM users AS U
+WHERE U.date_of_birth = (SELECT MAX(Y.date_of_birth) FROM users AS Y)
+GROUP BY 1
+```
+
 Can this be simplified to a single-level query? Yes! Just use the inner query. 
 ```sql
 SELECT MAX(Y.date_of_birth) FROM users AS Y
 ```
 I think you'll agree that this is simplier.
 Simplier one-level queries have fewer places for bugs to hide. Use them when possible.
-
-Note: the database will aggregate the result without a `GROUP BY` clause when all the expressions are aggregates like COUNT(), SUM(), MAX(), etc..
 
 ### Tip #2: Who is the youngest user?
 
