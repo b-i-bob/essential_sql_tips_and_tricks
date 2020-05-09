@@ -274,4 +274,4 @@ ORDER BY 1
 
 # Conclusion
 
-Within a single-level queries the complexity of operations is limited. Sometimes a multi-level query can be avoided with a `LIMIT`, `HAVING`, `ORDER BY`, `DISTINCT` or some clever function of a function. However, a straightforward multi-level query is often simplest and may perform best. Expect to write mutli-level queries when single-level queries are insufficiently expressive.
+Sometimes a multi-level query can be avoided with a `LIMIT`, `HAVING`, `ORDER BY`, `DISTINCT` or some clever function of a function. However, a straightforward multi-level query is often simplest and may perform best. Expect to write mutli-level queries when single-level queries are insufficiently expressive.
