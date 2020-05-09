@@ -1,6 +1,6 @@
 # Perhaps You Need to Write A Multi-Level Query
 
-A single-level SQL query of the form `SELECT ... FROM ...` has limited expressive power. Combining multiple queries into one multi-level query expands the kinds of data transformations which can be performed. SQL permits as many levels as you need!
+A single-level SQL query of the form `SELECT ... FROM ...` has limited expressive power. Multi-level queries expand the kinds of data transformations which can be performed. SQL permits as many levels as you need!
 
 ```sql
 SELECT ... FROM
@@ -81,6 +81,7 @@ Let's consider some mutli-level queries and see if they can be written more simp
 ### Tip #1: Who is the youngest user?
 
 This multi-level query first computes the most recent birthday in a sub-select. 
+That is the borthday of the youngest users.
 Then the outer query returns the name of any user who has that birthday. 
 The names of all the youngest users will be returned in case of a tie.
 ```sql
@@ -110,8 +111,8 @@ Is there a way to get the same result using a single-level query? No.
 
 If you just want one youngest user you need to break the potential tie and return just one name.  
 Here we break the tie by using alphabetical order and the `LIMIT` clause.  
-Some SQL systems use `SELECT TOP 1 ...` instead of or in addition to `LIMIT`.
-An `ORDER BY` clause may be required so that the query returns the same result when given the same source data. 
+Some SQL dialects use the syntax `SELECT TOP 1 ...` instead of `... LIMIT 1`.
+An `ORDER BY` clause may be required so that the query always returns the same result when given the same source data. 
 
 ```sql
 SELECT U.username, U.date_of_birth
@@ -121,7 +122,7 @@ ORDER BY 1
 LIMIT 1
 ```
 
-Is there a way to get the one user result using a one-level query? Yes! By sorting. 
+Is there a way to get the one user result using a single-level query? Yes! 
 Here the `ORDER BY` does double-duty. 
 It puts the latest birthdays first and as a nested sort puts those users with the same birthday in alphabetical order.
 
@@ -132,7 +133,7 @@ ORDER BY 2 DESC, 1
 LIMIT 1
 ```
 
-### Tip #2: What is the name and birthday of the 2nd youngest users?
+### Tip #2: Who are the 2nd youngest users?
 
 ```sql
 SELECT U.username, U.date_of_birth
@@ -144,9 +145,9 @@ WHERE U.date_of_birth =
     WHERE U.date_of_birth < (SELECT MAX(Y.date_of_birth) FROM users AS Y)
     )
 ```
-The innermost `SELECT` is finding the birthday of the youngest users. The `SELECT` in the middle is finding the birthday of the users who are second younges users. The outermost `SELECT` is returning the name and birthday of the second youngest users.
+The innermost `SELECT` is finding the birthday of the youngest users. The `SELECT` in the middle is finding the birthday of the users who are second youngest users. The outermost `SELECT` is returning the name and birthday of the second youngest users.
 
-There is an alternative which uses window functions and one less `SELECT`.
+There is an alternative which uses a window function and one less `SELECT`.
 ```sql
 SELECT X.username, X.date_of_birth
 FROM (
@@ -179,7 +180,7 @@ HAVING COUNT(*) = 12
 ORDER BY 1
 ```
 
-Is there a way to get the same result using a single-level query? Yes! A `COUNT DISTINCT` in the `HAVING` clause replaces the inner query and the `COUNT`. Return the years which have 12 distinct birth months.
+Is there a way to get the same result using a single-level query? Yes! Use a `COUNT DISTINCT` in the `HAVING` clause.
 
 ```sql
 SELECT DATE_PART('year',U.date_of_birth) as y
@@ -216,9 +217,9 @@ HAVING COUNT(*) > 1
 ORDER BY 1,2
 ```
 
-The logic of this query is to show every birthday for every parent which has multiple children born that day. The condition to show only multiples and not single births is in the `HAVING` clause instead of the `WHERE` clause because it uses aggregate functions, the `COUNT(*)`. 
+The logic of this query is group together the users who qualify as multiples (same birthday and same parent). The condition to show only multiples is in the `HAVING` clause instead of the `WHERE` clause because it uses an aggregate function, `COUNT(*)`. 
 
-Its more likely that you will use this kind of query to detect if the same child has been erroneously entered more than once than to detect twins. 
+Its more likely that you will use this kind of query to detect if the same user has been erroneously entered multiple times rather than to detect twins. 
 
 ### Tip #5: Which users are the multiples (twins, triplets, quadruplets, ...)?
 
@@ -243,11 +244,34 @@ SELECT *
 FROM (
          SELECT U.parent_id,
                 U.date_of_birth,
-                U.username
-                count(*) OVER (PARTITION BY U.account_id, U.date_of_birth) AS multiples
+                U.username,
+                count(*) OVER (PARTITION BY U.parent_id, U.date_of_birth) AS multiples
          FROM users AS U
      ) AS M
 WHERE multiples > 1
 ORDER BY 1, 2, 3
 ```
-### Tip #6: What is the distribution of the number of users born in any year?
+
+What's happening is that the window function, an aggreagte function with the `OVER` clause, does a `count` over all users with the same parent and birthday. It adds that value we are calling `multiples` to every row. This is a little handier than the `GROUP BY` because extra information can be carried along with each row, her the username. The outer query adds a filter to return only the uses which are multiples.
+
+### Tip #6: How many years have 1 user, 2 users, 3 users?
+
+This is a histogram of users with 1 year bins. It requires a multi-level query.
+
+The inner query counts the number of users for each year while the outer query counts the years for each number of users.
+
+```sql
+SELECT C.num_users, count(*) as years
+from (
+         SELECT DATE_PART('year', U.date_of_birth) AS y, count(*) AS num_users
+         FROM users AS U
+         WHERE U.date_of_birth IS NOT NULL
+         GROUP BY 1
+     ) AS C
+GROUP BY 1
+ORDER BY 1
+```
+
+# Conclusion
+
+Within a single-level queries the complexity of operations is limited. Sometimes a multi-level query can be avoided with a `LIMIT`, `HAVING`, `ORDER BY`, `DISTINCT` or some clever function of a function. However, a straightforward multi-level query is often simplest and may perform best. Expect to write mutli-level queries when single-level queries are insufficiently expressive.
