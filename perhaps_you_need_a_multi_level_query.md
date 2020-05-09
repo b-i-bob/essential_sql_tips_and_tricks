@@ -1,6 +1,6 @@
 # Perhaps You Need to Write A Multi-Level Query
 
-A single-level SQL query of the form `SELECT ... FROM ...` has limited expressive power. Multi-level queries expand the kinds of data transformations which can be performed. SQL permits as many levels as you need!
+A single-level SQL query of the form `SELECT ... FROM ...` has limited expressive power. [Multi-level queries](https://github.com/b-i-bob/essential_sql_tips_and_tricks/tree/master) expand the kinds of data transformations which can be performed. SQL permits as many levels as you need!
 
 ```sql
 SELECT ... FROM
@@ -12,76 +12,12 @@ SELECT ... FROM
     ) AS C
 ```
 
-This article will show that sometimes multi-level queries are necessary. But first lets look at how to code them.
-
-## HOW
-There are a few ways to code multi-level queries in SQL. Each makes different tradeoffs in readability, control, and performance. 
-
-### Use a sub-select in the SELECT clause.
-```sql
-SELECT TableA.x, 
-       (SELECT TableB.y FROM TableB WHERE TableA.b_id = TableB.id) AS y
-FROM TableA
-```
-*This is appropriate when you just need a single value from another table. Y in this example.*
-
-### Use a sub-select in the FROM OR JOIN clause.
-```sql
-SELECT TableA.x, SS_B.y, SS_B.z
-FROM TableA
-    LEFT JOIN (SELECT id, y, z FROM TableB) AS SS_B ON TableA.b_id = SS_B.id
-```
-*This is best when you need multiple values from another table.*
-
-### Use a common table expression.
-```sql
-WITH CTE_B AS
-    (
-    SELECT id, y, z FROM TableB
-    )
-SELECT TableA.x, CTE_B.y, CTE_B.z
-FROM TableA
-JOIN CTE_B ON TableA.b_id = CTE_B.id
-```
-*This is best when you want to use the CTE more than once in the query. Some think it is more readable than the sub-select.*
-
-### Create a view. Use the view.
-```sql
-CREATE OR REPLACE VIEW V_B AS
-    (
-    SELECT id, y, z FROM TableB
-    )
-    
-SELECT TableA.x, V_B.y, V_B.z
-FROM TableA
-JOIN V_B ON TableA.b_id = V_B.id
-```
-*This is best when you want to centralize logic in one place (in the view) to use across multiple queries.*
-
-The view is a named stored query. It can be used most places a table name can used. 
-
-### Materialize a result set into a table. Use the table.
-```sql
-CREATE OR REPLACE TABLE T_B AS
-    (
-    SELECT id, y, z FROM TableB
-    )
-    
-SELECT TableA.x AS XfromA, T_B.y, T_B.z
-FROM TableA
-JOIN T_B ON TableA.b_id = T_B.id
-```
-*This is best when a view is too slow to query and when the table can be refreshed often enough for the use case.*
-
-There are more elaborate ways to stage intermediate results in SQL but they are unfortuantely beyond the scope of this article.
-
-## WHEN
-Let's consider some mutli-level queries and see if they can be written more simply as single-level queries.
+Let's consider some multi-level queries and see if they can be written more simply as single-level queries.
 
 ### Tip #1: Who is the youngest user?
 
 This multi-level query first computes the most recent birthday in a sub-select. 
-That is the borthday of the youngest users.
+That is the birthday of the youngest users.
 Then the outer query returns the name of any user who has that birthday. 
 The names of all the youngest users will be returned in case of a tie.
 ```sql
@@ -252,11 +188,11 @@ WHERE multiples > 1
 ORDER BY 1, 2, 3
 ```
 
-What's happening is that the window function, an aggreagte function with the `OVER` clause, does a `count` over all users with the same parent and birthday. It adds that value we are calling `multiples` to every row. This is a little handier than the `GROUP BY` because extra information can be carried along with each row, her the username. The outer query adds a filter to return only the uses which are multiples.
+What's happening is that the window function, an aggreagte function with the `OVER` clause, does a `COUNT` over all users with the same parent and birthday. It adds that value we are calling `multiples` to every row. This is a little handier than the `GROUP BY` because extra information can be carried along with each row, here the username. The outer query adds a filter to return only the uses which are multiples.
 
 ### Tip #6: How many years have 1 user, 2 users, 3 users?
 
-This is a histogram of users with 1 year bins. It requires a multi-level query.
+This is a histogram of the number of users within 1-year-wide bins. It requires a multi-level query.
 
 The inner query counts the number of users for each year while the outer query counts the years for each number of users.
 
